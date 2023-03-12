@@ -6,10 +6,8 @@ from copy import deepcopy
 import matplotlib.pyplot as plt
 #pip install plotly
 #pip install -U kaleido
-import plotly.graph_objs as go
 import plotly.express as px
 import plotly.io as pio
-
 
 #parameters calculation 
 
@@ -75,6 +73,7 @@ class IndividualClass:
         self.Reliability = F(individual)
         self.Latency = L(individual)
         self.Rank = None
+        self.Crowding_distance=None
               
     def setRank(self, rank):
         self.Rank = rank
@@ -103,7 +102,7 @@ def generateTasksAndVMs():
     for i,Task in enumerate(dfTask["nbInstruction"]):
         Tasks.append(TaskClass(i,Task))
     for i in range(len(dfVM)):
-        VMs.append(VMClass(i,dfVM["ComputerRate"][i],dfVM["UseCost"][i],dfVM["FailureRate"][i],randint(1,20)))
+        VMs.append(VMClass(i,dfVM["ComputerRate"][i],dfVM["UseCost"][i],dfVM["FailureRate"][i],dfVM["Latency"][i]))
     return(pd.DataFrame(Tasks)[0],pd.DataFrame(VMs)[0])
 
 #function generating a random individual
@@ -149,7 +148,7 @@ def reproduction(population,Tasks,VMs):
     shuffle(population)
     return(population)
 
-def create_subgroups(population):
+def create_subgroups(population,removeParameter=False):
     deepcopyPop=deepcopy(population)
     subgroups=[]
     while(len(population)>0):
@@ -159,16 +158,22 @@ def create_subgroups(population):
             Xi=population[i]
             for j in range (len(population)):
                 Xj=population[j]
-                #print(i,j)
-                #print(Xi.CostEx <= Xj.CostEx)
-                #print(Xi.Reliability>=Xj.Reliability)
-                #print(Xi.Latency<=Xj.Latency)
-                #if(i==j):
-                #    print("i==j")
-                if (not(Xi.CostEx <= Xj.CostEx or Xi.Reliability>=Xj.Reliability or Xi.Latency <= Xj.Latency)):
-#                if (not(Xi.CostEx <= Xj.CostEx or Xi.Reliability>=Xj.Reliability)):
-                   boolean=False 
-                   #break
+                if (removeParameter=="CostEx"):
+                    if (Xi.Reliability < Xj.Reliability and Xi.Latency > Xj.Latency):
+                        boolean=False 
+                        break                
+                elif (removeParameter=="Reliability"):
+                    if (Xi.CostEx > Xj.CostEx and Xi.Latency > Xj.Latency):
+                        boolean=False 
+                        break
+                elif (removeParameter=="Latency"):
+                    if (Xi.CostEx > Xj.CostEx and Xi.Reliability < Xj.Reliability):
+                        boolean=False 
+                        break
+                else:
+                    if (Xi.CostEx > Xj.CostEx and Xi.Reliability < Xj.Reliability and Xi.Latency > Xj.Latency):
+                        boolean=False 
+                        break
                 
             if (boolean):
                 subgroup.append(deepcopyPop.pop(i))
@@ -176,42 +181,49 @@ def create_subgroups(population):
         population=deepcopy(deepcopyPop)
     return(subgroups)
     
-# =============================================================================
-# 
-# def crowding_distance_sorting(front):
-#     n = len(front)
-#     distances = [0] * n
-#     
-#     # Initialize the distances for the first and last individuals as infinity
-#     distances[0] = float("inf")
-#     distances[n-1] = float("inf")
-#     
-#     objectivesmin=[front[0].CostEx,front[0].Reliability,front[0].Latency]
-#     objectivesmax=[front[0].CostEx,front[0].Reliability,front[0].Latency]
-#     # Calculate the distance for each individual in the front
-#     for m in range(len(objectivesmin)):
-#         front = sorted(front, key=lambda individual: individual.objectives[m])
-#         f_min = objectivesmin
-#         f_max = objectivesmin
-#         
-#         # Avoid division by zero
-#         if f_max == f_min:
-#             continue
-#         
-#         # Calculate the distance for each individual in the front based on the m-th objective
-#         for i in range(1, n-1):
-#             distances[i] += (front[i+1].objectives[m] - front[i-1].objectives[m]) / (f_max - f_min)
-#     
-#     # Assign the crowding distance to each individual in the front
-#     for i in range(n):
-#         front[i].crowding_distance = distances[i]
-#     
-#     # Sort the front based on the crowding distance
-#     front = sorted(front, key=lambda individual: individual.crowding_distance, reverse=True)
-#     
-#     return front
-# =============================================================================
 
+
+def crowding_distance_sorting(sub_group, removeParameter=False):
+    n=len(sub_group)
+    distances=[0 for i in range(n)]
+    distances[0]=float("inf")
+    distances[-1]=float("inf")
+    if (not removeParameter=="CostEx"):
+        sub_group = sorted(sub_group, key=lambda individual: individual.CostEx)
+        f_min = sub_group[0].CostEx
+        f_max = sub_group[-1].CostEx
+        if (f_max != f_min):
+            for i in range(1,n-1):
+                distances[i] += (sub_group[i+1].CostEx - sub_group[i-1].CostEx) / (f_max - f_min)
+    
+    if (not removeParameter=="Reliability"):
+        sub_group = sorted(sub_group, key=lambda individual: individual.Reliability)
+        f_min = sub_group[0].Reliability
+        f_max = sub_group[-1].Reliability
+        if (f_max != f_min):
+            for i in range(1,n-1):
+                distances[i] += (sub_group[i+1].Reliability - sub_group[i-1].Reliability) / (f_max - f_min)
+
+    if (not removeParameter=="Latency"):
+        sub_group = sorted(sub_group, key=lambda individual: individual.Latency)
+        f_min = sub_group[0].Latency
+        f_max = sub_group[-1].Latency
+        if (f_max != f_min):
+            for i in range(1,n-1):
+                distances[i] += (sub_group[i+1].Latency - sub_group[i-1].Latency) / (f_max - f_min)
+
+    for i in range(n):
+         sub_group[i].crowding_distance = distances[i]
+     
+    sub_group = sorted(sub_group, key=lambda individual: individual.crowding_distance, reverse=True)
+     
+    return sub_group
+
+def sort_sub_group(sub_groups,removeParameter=False):
+    new_sub_groups=[]
+    for sub_group in sub_groups:
+        new_sub_groups.append(crowding_distance_sorting(sub_group,removeParameter))
+    return(new_sub_groups)
 
 def giveRank(sub_groups):
     for i,sub_group in enumerate(sub_groups):
@@ -233,19 +245,7 @@ def display_means(population):
     print(sumCostEx/n,sumReliability/n,sumLatency/n)
 
 
-def test():
-    Tasks,VMs=generateTasksAndVMs()
-    population=generate_random_population(100,Tasks,VMs)
-    populationShow(population)
-    print("reproduction")
-    population=reproduction(population,Tasks,VMs)
-    populationShow(population)
-    print("natural selection")
-    rankedPop=create_subgroups(population)
-    population=natural_selection(100, rankedPop)
-    populationShow(population)
-
-def show_Domination_Plot (population, save=False):
+def show_Domination_Plot_3D (population, save=False):
 
     x = []
     y = []
@@ -269,21 +269,76 @@ def show_Domination_Plot (population, save=False):
         
     fig.show()
 
-def main(population_size=200,nb_generations=100):
+def show_Domination_Plot_2D (population,xattribute,yattribute, save=False):
+    x = []
+    y = []
+    c = []
+    pio.renderers.default = 'browser'
+    for individual in population:
+        if (xattribute=="CostEx"):
+            x.append(individual.CostEx)
+        elif (xattribute=="Reliability"):
+            x.append(individual.Reliability)
+        else:
+            x.append(individual.Latency)
+        if (yattribute=="CostEx"):
+            y.append(individual.CostEx)
+        elif (yattribute=="Reliability"):
+            y.append(individual.Reliability)
+        else:
+            y.append(individual.Latency)
+                    
+        c.append(individual.Rank)
+    plt.scatter(x,y,c=c)
+    if save:
+        plt.savefig(f'{save}.png')
+    plt.show()
+    
+
+def show_Domination_Plot(population, removeParameter=False, save= False):
+    if removeParameter=="CostEx":
+        show_Domination_Plot_2D(population,"Reliability","Latency",save)
+    elif removeParameter=="Reliability":
+        show_Domination_Plot_2D(population,"CostEx","Latency",save)
+    elif removeParameter=="Latency":
+        show_Domination_Plot_2D(population,"CostEx","Reliability",save)
+    else:
+        show_Domination_Plot_3D(population, save)
+
+def NSGA_II(population_size=200,nb_generations=100, removeParameter=False, show_convergence=False):
     Tasks,VMs=generateTasksAndVMs()
     population=generate_random_population(population_size,Tasks,VMs)
-    #populationShow(population, printData=True)
     display_means(population)
     for i in range(nb_generations):
          if (i%10==0):
              print("étape "+str(i))
          shuffle(population)
          population=reproduction(population,Tasks,VMs)
-         rankedPop=create_subgroups(population)
+         rankedPop=create_subgroups(population,removeParameter)
          rankedPop=giveRank(rankedPop)
+         rankedPop=sort_sub_group(rankedPop,removeParameter)
          population=natural_selection(population_size, rankedPop)
-         if (i==0 or i==nb_generations-1):
-                 show_Domination_Plot(population,save="Plot_generation "+str(i))
-    print("final generation")
-    #populationShow(population)
+         if (i==0 or i==nb_generations-1 or show_convergence and(i==2 or i==4 or i==6 or i==10)):
+             savefileName="_generation_n-"+str(i)
+             if removeParameter:
+                 savefileName= "SavedPlots/2D_Plot_"+removeParameter+"_ignored"+savefileName
+             else:
+                 savefileName= "SavedPlots/3D_Plot"+savefileName
+             show_Domination_Plot(population,removeParameter,save=savefileName)
+             print(savefileName)
+    print("average of final generation parameters:")
     display_means(population)
+    print("exemple of some of the fittest individual:")
+    population[0].show()
+    print(population[0].CostEx,population[0].Reliability,population[0].Latency)
+    population[population_size//2].show()
+    print(population[population_size//2].CostEx,population[population_size//2].Reliability,population[population_size//2].Latency)
+    population[population_size-1].show()
+    print(population[population_size-1].CostEx,population[population_size-1].Reliability,population[population_size-1].Latency)
+    
+def main ():
+    NSGA_II(removeParameter="CostEx",show_convergence=True)
+    NSGA_II(removeParameter="Reliability")
+    NSGA_II(removeParameter="Latency")
+    NSGA_II()
+    
