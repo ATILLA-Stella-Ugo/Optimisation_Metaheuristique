@@ -102,7 +102,7 @@ def generateTasksAndVMs():
     for i,Task in enumerate(dfTask["nbInstruction"]):
         Tasks.append(TaskClass(i,Task))
     for i in range(len(dfVM)):
-        VMs.append(VMClass(i,dfVM["ComputerRate"][i],dfVM["UseCost"][i],dfVM["FailureRate"][i],dfVM["Latency"][i]))
+        VMs.append(VMClass(i,dfVM["ComputerRate"][i],dfVM["UseCost"][i],dfVM["FailureRate"][i],dfVM["NetworkTime"][i]))
     return(pd.DataFrame(Tasks)[0],pd.DataFrame(VMs)[0])
 
 #function generating a random individual
@@ -342,3 +342,4 @@ def main ():
     NSGA_II(removeParameter="Latency")
     NSGA_II()
     
+main()
