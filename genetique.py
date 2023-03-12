@@ -381,9 +381,9 @@ def NSGA_II(population_size=200,nb_generations=100, removeParameter=False, show_
     print(best_reliability.CostEx,best_reliability.Reliability,best_reliability.Latency)
 
 def main ():
-    #NSGA_II(removeParameter="CostEx",show_convergence=True)
-    #NSGA_II(removeParameter="Reliability")
-    #NSGA_II(removeParameter="Latency")
+    NSGA_II(removeParameter="CostEx",show_convergence=True)
+    NSGA_II(removeParameter="Reliability")
+    NSGA_II(removeParameter="Latency")
     NSGA_II()
     
 main()
