@@ -305,6 +305,36 @@ def show_Domination_Plot(population, removeParameter=False, save= False):
     else:
         show_Domination_Plot_3D(population, save)
 
+# Select and display the best solution for one of the objectives
+def display_best_solution_by_objective(solutions,objective):
+    best_solution_for_objective = solutions[0]
+
+    if objective == "CostEx":
+        for solution in solutions:
+            if solution.CostEx < best_solution_for_objective.CostEx:
+                best_solution_for_objective = solution
+            elif solution.CostEx == best_solution_for_objective.CostEx:
+                if (solution.Latency < best_solution_for_objective.Latency or solution.Reliability > best_solution_for_objective.Reliability):
+                    best_solution_for_objective = solution
+
+    elif objective == "Latency":
+        for solution in solutions:
+            if solution.Latency < best_solution_for_objective.Latency:
+                best_solution_for_objective = solution
+            elif solution.Latency == best_solution_for_objective.Latency:
+                if (solution.CostEx < best_solution_for_objective.CostEx or solution.Reliability > best_solution_for_objective.Reliability):
+                    best_solution_for_objective = solution
+
+    elif objective == "Reliability":
+        for solution in solutions:
+            if solution.Reliability > best_solution_for_objective.Reliability:
+                best_solution_for_objective = solution
+            elif solution.Reliability == best_solution_for_objective.Reliability:
+                if (solution.CostEx < best_solution_for_objective.CostEx or solution.Latency > best_solution_for_objective.Latency):
+                    best_solution_for_objective = solution
+    
+    return best_solution_for_objective
+
 def NSGA_II(population_size=200,nb_generations=100, removeParameter=False, show_convergence=False):
     Tasks,VMs=generateTasksAndVMs()
     population=generate_random_population(population_size,Tasks,VMs)
@@ -335,10 +365,25 @@ def NSGA_II(population_size=200,nb_generations=100, removeParameter=False, show_
     print(population[population_size//2].CostEx,population[population_size//2].Reliability,population[population_size//2].Latency)
     population[population_size-1].show()
     print(population[population_size-1].CostEx,population[population_size-1].Reliability,population[population_size-1].Latency)
-    
+    print()
+
+    best_costEx = display_best_solution_by_objective(population,"CostEx")
+    best_latency = display_best_solution_by_objective(population,"Latency")
+    best_reliability = display_best_solution_by_objective(population,"Reliability")
+    print("best solution for CostEx is : ")
+    best_costEx.show()
+    print(best_costEx.CostEx,best_costEx.Reliability,best_costEx.Latency)
+    print("best solution for Latency is : ")
+    best_latency.show()
+    print(best_latency.CostEx,best_latency.Reliability,best_latency.Latency)
+    print("best solution for Reliability is : ")
+    best_reliability.show()
+    print(best_reliability.CostEx,best_reliability.Reliability,best_reliability.Latency)
+
 def main ():
-    NSGA_II(removeParameter="CostEx",show_convergence=True)
-    NSGA_II(removeParameter="Reliability")
-    NSGA_II(removeParameter="Latency")
+    #NSGA_II(removeParameter="CostEx",show_convergence=True)
+    #NSGA_II(removeParameter="Reliability")
+    #NSGA_II(removeParameter="Latency")
     NSGA_II()
     
+main()
