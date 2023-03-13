@@ -209,6 +209,9 @@ def create_subgroups(population,removeParameter=False):
 #calculate the crowding distance for each individual
 def crowding_distance_sorting(sub_group, removeParameter=False):
     n=len(sub_group)
+    #initialising the crowding distances to zero
+    for individual in sub_group:
+        individual.Crowding_distance = 0
     #initialising the distance list to list of 0 and infinity for first and last distance
     distances=[0 for i in range(n)]
     distances[0]=float("inf")

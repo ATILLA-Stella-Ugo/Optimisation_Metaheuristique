@@ -1,12 +1,15 @@
 # Optimisation_Metaheuristique
 
 ## Installation
+You first require to have python install on your device.
 
 All the libraries necessary are imported at the beginning of the code.
 You need to install them with the command pip.
 
-To display graphics, you also need to install plotly and Kaleido with :
+pip install -U matplotlib
 
+To display graphics, you also need to install plotly and Kaleido with :
+pip install -U matplotlib
 pip install plotly
 pip install -U kaleido
 
