@@ -1,32 +1,39 @@
 #Import libraries
+
 from random import randint,sample,shuffle
-import pandas as pd
 from math import exp
 from copy import deepcopy
-import matplotlib.pyplot as plt
+
+import pandas as pd
+
 #pip install plotly
 #pip install -U kaleido
 import plotly.express as px
 import plotly.io as pio
+import matplotlib.pyplot as plt
+
 
 #parameters calculation 
 
-#T_ex(Tij) aka Execution Time
+#T_ex(Tij) or Execution Time
 def Tex(T):
     return(T.nbInstruction/T.ComputerRate)
 
+#C_ex(X) or Execution Cost
 def Cex(X):
     res=0
     for DV in X:
         res+=Tex(DV)*DV.UseCost
     return(res)
 
+#F(X) or Reliability
 def F(X):
     res=0
     for DV in X:
         res+=(Tex(DV)*DV.FailureRate)
     return (exp(-1*res))
 
+#L(X) or Latency
 def L(X):
     res=0
     for DV in X:
@@ -73,7 +80,7 @@ class IndividualClass:
         self.Reliability = F(individual)
         self.Latency = L(individual)
         self.Rank = None
-        self.Crowding_distance=None
+        self.Crowding_distance=0
               
     def setRank(self, rank):
         self.Rank = rank
@@ -148,16 +155,25 @@ def reproduction(population,Tasks,VMs):
     shuffle(population)
     return(population)
 
+#Create subgroups sorting individual by ranks
+#an individual is in a rank i if he is not dominated by any indivual in a rank lower
+#and if there is at least one individual in the rank i-1 dominating him
 def create_subgroups(population,removeParameter=False):
+    #we need a copy of the population so poping individual during the 
+    #domination check algorithm does not falsify the results
     deepcopyPop=deepcopy(population)
     subgroups=[]
+    #until every one as been ranked
     while(len(population)>0):
         subgroup=[]
+        #for each individual
         for i in reversed(range(len(population))):
             boolean=True
             Xi=population[i]
+            #we check every other individual in the popultion
             for j in range (len(population)):
                 Xj=population[j]
+                #and check for domination
                 if (removeParameter=="CostEx"):
                     if (Xi.Reliability < Xj.Reliability and Xi.Latency > Xj.Latency):
                         boolean=False 
@@ -174,28 +190,41 @@ def create_subgroups(population,removeParameter=False):
                     if (Xi.CostEx > Xj.CostEx and Xi.Reliability < Xj.Reliability and Xi.Latency > Xj.Latency):
                         boolean=False 
                         break
-                
+            #if no individual dominates this one    
             if (boolean):
+                #we add the individual to the sublist and we pop it from the copy of population
                 subgroup.append(deepcopyPop.pop(i))
         subgroups.append(subgroup)
+        #we update population by removing the freshly ranked individuals
         population=deepcopy(deepcopyPop)
     return(subgroups)
     
 
-
+#calculate the crowding distance for each individual
 def crowding_distance_sorting(sub_group, removeParameter=False):
     n=len(sub_group)
+    #initialising the distance list to list of 0 and infinity for first and last distance
     distances=[0 for i in range(n)]
     distances[0]=float("inf")
     distances[-1]=float("inf")
+    #we iterate for each parameters
     if (not removeParameter=="CostEx"):
+        #we sort the population by the parameter CostEx
         sub_group = sorted(sub_group, key=lambda individual: individual.CostEx)
         f_min = sub_group[0].CostEx
         f_max = sub_group[-1].CostEx
+        #this prevents dividing by zero
         if (f_max != f_min):
+            #we calculate the crowding distance for each individual for the parameter CostEx
             for i in range(1,n-1):
                 distances[i] += (sub_group[i+1].CostEx - sub_group[i-1].CostEx) / (f_max - f_min)
-    
+        #we assign the crowding distance to the individuals
+        for i in range(n):
+            sub_group[i].Crowding_distance = sub_group[i].Crowding_distance+distances[i]
+        distances=[0 for i in range(n)]
+        distances[0]=float("inf")
+        distances[-1]=float("inf")
+    #we repeat for Reliablity
     if (not removeParameter=="Reliability"):
         sub_group = sorted(sub_group, key=lambda individual: individual.Reliability)
         f_min = sub_group[0].Reliability
@@ -203,7 +232,12 @@ def crowding_distance_sorting(sub_group, removeParameter=False):
         if (f_max != f_min):
             for i in range(1,n-1):
                 distances[i] += (sub_group[i+1].Reliability - sub_group[i-1].Reliability) / (f_max - f_min)
-
+        for i in range(n):
+            sub_group[i].Crowding_distance = sub_group[i].Crowding_distance+distances[i]
+        distances=[0 for i in range(n)]
+        distances[0]=float("inf")
+        distances[-1]=float("inf")
+    #We repeat for Latancy
     if (not removeParameter=="Latency"):
         sub_group = sorted(sub_group, key=lambda individual: individual.Latency)
         f_min = sub_group[0].Latency
@@ -211,23 +245,25 @@ def crowding_distance_sorting(sub_group, removeParameter=False):
         if (f_max != f_min):
             for i in range(1,n-1):
                 distances[i] += (sub_group[i+1].Latency - sub_group[i-1].Latency) / (f_max - f_min)
-
-    for i in range(n):
-         sub_group[i].crowding_distance = distances[i]
-     
-    sub_group = sorted(sub_group, key=lambda individual: individual.crowding_distance, reverse=True)
-     
+        for i in range(n):
+            sub_group[i].Crowding_distance = sub_group[i].Crowding_distance+distances[i]
+        distances=[0 for i in range(n)]
+        distances[0]=float("inf")
+        distances[-1]=float("inf")
+    #we now sort the population by crowding distance order
+    sub_group = sorted(sub_group, key=lambda individual: individual.Crowding_distance, reverse=True)
     return sub_group
 
+#sort every sub group in a list of sub groups
 def sort_sub_group(sub_groups,removeParameter=False):
     new_sub_groups=[]
     for sub_group in sub_groups:
         new_sub_groups.append(crowding_distance_sorting(sub_group,removeParameter))
     return(new_sub_groups)
 
+#gives a rank for every elements in a subgroup list
 def giveRank(sub_groups):
     for i,sub_group in enumerate(sub_groups):
-#        sub_group=crowding_distance_sorting(sub_group)
         for individual in sub_group:
             individual.setRank(i+1)     
     return(sub_groups)
@@ -237,6 +273,7 @@ def natural_selection(n,sub_groups):
     newPop=[individual for rank in sub_groups for individual in rank]
     return(newPop[:n])
 
+#display the average value of the parameters of a population
 def display_means(population):
     sumCostEx=sum(individual.CostEx for individual in population)
     sumReliability=sum(individual.Reliability for individual in population)
@@ -244,37 +281,46 @@ def display_means(population):
     n=len(population)
     print(sumCostEx/n,sumReliability/n,sumLatency/n)
 
-
+#show a interactive 3d plot using plotly.express
 def show_Domination_Plot_3D (population, save=False):
-
+    
     x = []
     y = []
     z = []
+    #colors (the rank of an individual)
     c = []
+    
+    #initialising the X Y Z and color data lists
     for individual in population:
         x.append(individual.CostEx)
         y.append(individual.Reliability)
         z.append(individual.Latency)
         c.append(individual.Rank)
+    #changes default view renderer to browser
     pio.renderers.default = 'browser'
+    #creates the plot
     fig = px.scatter_3d(x=x, y=y, z=z, color=c, 
                         title='Scatter points showing domination', 
                         labels={'x': 'Execution Cost', 'y': 'Reliability', 'z': 'Latency'})
+    #adds the labels
     fig.update_layout(scene=dict(xaxis=dict(title='Execution Cost'),
                                   yaxis=dict(title='Reliability'),
                                   zaxis=dict(title='Latency')))
-    
+    #saves the plot (3d plot are not interacive anymore ounce saved)
     if save:
         fig.write_image(f'{save}.png')
-        
+    #shows the plot
     fig.show()
 
+#show a 2d plot
 def show_Domination_Plot_2D (population,xattribute,yattribute, save=False):
     x = []
     y = []
+    #colors (the rank of an individual)
     c = []
-    pio.renderers.default = 'browser'
+    #initialising the X Y Z and color data lists
     for individual in population:
+        #we have several options if we want to ignore a variable
         if (xattribute=="CostEx"):
             x.append(individual.CostEx)
         elif (xattribute=="Reliability"):
@@ -289,12 +335,15 @@ def show_Domination_Plot_2D (population,xattribute,yattribute, save=False):
             y.append(individual.Latency)
                     
         c.append(individual.Rank)
+    #initialises the plot
     plt.scatter(x,y,c=c)
+    #saves the plot
     if save:
         plt.savefig(f'{save}.png')
+    #shows the plot
     plt.show()
     
-
+#function to show a graph in 2D or 3D depending on remove parameter.
 def show_Domination_Plot(population, removeParameter=False, save= False):
     if removeParameter=="CostEx":
         show_Domination_Plot_2D(population,"Reliability","Latency",save)
@@ -335,19 +384,34 @@ def display_best_solution_by_objective(solutions,objective):
     
     return best_solution_for_objective
 
+#The function running the NSGA_II Algorithm, Remove parameter allows to run the simulation with one 
+#parameter less (for 2D graphs) and show convergence shows the graph for the early stages of the simulation
+#di
 def NSGA_II(population_size=200,nb_generations=100, removeParameter=False, show_convergence=False):
+    #reads the files' data and load them in classes
     Tasks,VMs=generateTasksAndVMs()
+    #generates a random generation of individuals for initialisation
     population=generate_random_population(population_size,Tasks,VMs)
+    #displays some datas
     display_means(population)
+    #start of the simulation
     for i in range(nb_generations):
+         #regularly prints the steps of progression of the algorithm
          if (i%10==0):
              print("étape "+str(i))
+         #randomly shuffles the population before reproduction
          shuffle(population)
+         #reproduction of the population
          population=reproduction(population,Tasks,VMs)
+         #creates the sub groups by rank
          rankedPop=create_subgroups(population,removeParameter)
+         #assignes a rank to each individual
          rankedPop=giveRank(rankedPop)
+         #sorts the population by crowding distance
          rankedPop=sort_sub_group(rankedPop,removeParameter)
+         #selection of featest individuals
          population=natural_selection(population_size, rankedPop)
+         #generateq a graph for some of the steps
          if (i==0 or i==nb_generations-1 or show_convergence and(i==2 or i==4 or i==6 or i==10)):
              savefileName="_generation_n-"+str(i)
              if removeParameter:
@@ -356,6 +420,7 @@ def NSGA_II(population_size=200,nb_generations=100, removeParameter=False, show_
                  savefileName= "SavedPlots/3D_Plot"+savefileName
              show_Domination_Plot(population,removeParameter,save=savefileName)
              print(savefileName)
+    #displays some data at the end of the simulation
     print("average of final generation parameters:")
     display_means(population)
     print("exemple of some of the fittest individual:")
@@ -380,10 +445,13 @@ def NSGA_II(population_size=200,nb_generations=100, removeParameter=False, show_
     best_reliability.show()
     print(best_reliability.CostEx,best_reliability.Reliability,best_reliability.Latency)
 
+#main function running several simulations
 def main ():
     NSGA_II(removeParameter="CostEx",show_convergence=True)
     NSGA_II(removeParameter="Reliability")
     NSGA_II(removeParameter="Latency")
     NSGA_II()
-    
+
+#runs the main function when the code runs
+#comment when  working on the code
 main()
