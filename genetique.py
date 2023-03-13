@@ -1,3 +1,8 @@
+######################################################
+###########Metaherestic project assignement###########
+#made by Grondin Fabien, Maurice Ambre and Stella Ugo#
+######################################################
+
 #Import libraries
 
 from random import randint,sample,shuffle
@@ -127,7 +132,7 @@ def generate_random_population(n,Tasks,VMs):
 
 #crosses randomely genes of two parents to make a baby
 #one gene is randomely muteted in the process
-def croisement(mom,dad,Tasks,VMs):
+def breeding(mom,dad,Tasks,VMs):
     nT=len(Tasks)
     nVM=len(VMs)
     random_genes=sample(range(nT),k=nT//2)
@@ -150,7 +155,7 @@ def reproduction(population,Tasks,VMs):
     for i in range (N):
         mom=population[i]
         dad=population[(i+1)%N]
-        babies.append(croisement(mom,dad,Tasks,VMs))
+        babies.append(breeding(mom,dad,Tasks,VMs))
     population=population+babies
     shuffle(population)
     return(population)
@@ -386,7 +391,6 @@ def display_best_solution_by_objective(solutions,objective):
 
 #The function running the NSGA_II Algorithm, Remove parameter allows to run the simulation with one 
 #parameter less (for 2D graphs) and show convergence shows the graph for the early stages of the simulation
-#di
 def NSGA_II(population_size=200,nb_generations=100, removeParameter=False, show_convergence=False):
     #reads the files' data and load them in classes
     Tasks,VMs=generateTasksAndVMs()
