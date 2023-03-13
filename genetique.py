@@ -25,10 +25,11 @@ def Tex(T):
     return(T.nbInstruction/T.ComputerRate)
 
 #C_ex(X) or Execution Cost
+#The division by 60 is to convert useCost(min) into useCost(sec)
 def Cex(X):
     res=0
     for DV in X:
-        res+=Tex(DV)*DV.UseCost
+        res+=Tex(DV)*DV.UseCost/60
     return(res)
 
 #F(X) or Reliability
@@ -342,6 +343,8 @@ def show_Domination_Plot_2D (population,xattribute,yattribute, save=False):
         c.append(individual.Rank)
     #initialises the plot
     plt.scatter(x,y,c=c)
+    plt.xlabel(xattribute)
+    plt.ylabel(yattribute)
     #saves the plot
     if save:
         plt.savefig(f'{save}.png')
@@ -362,15 +365,17 @@ def show_Domination_Plot(population, removeParameter=False, save= False):
 # Select and display the best solution for one of the objectives
 def display_best_solution_by_objective(solutions,objective):
     best_solution_for_objective = solutions[0]
-
+    #looks for the best solution if we want to minimize CostEx
     if objective == "CostEx":
         for solution in solutions:
             if solution.CostEx < best_solution_for_objective.CostEx:
                 best_solution_for_objective = solution
+            #case when we have an equality between to minimums
+            #in that case we try to optimize other parameters 
             elif solution.CostEx == best_solution_for_objective.CostEx:
                 if (solution.Latency < best_solution_for_objective.Latency or solution.Reliability > best_solution_for_objective.Reliability):
                     best_solution_for_objective = solution
-
+    #same for Latency
     elif objective == "Latency":
         for solution in solutions:
             if solution.Latency < best_solution_for_objective.Latency:
@@ -378,7 +383,7 @@ def display_best_solution_by_objective(solutions,objective):
             elif solution.Latency == best_solution_for_objective.Latency:
                 if (solution.CostEx < best_solution_for_objective.CostEx or solution.Reliability > best_solution_for_objective.Reliability):
                     best_solution_for_objective = solution
-
+    #same for Reliability
     elif objective == "Reliability":
         for solution in solutions:
             if solution.Reliability > best_solution_for_objective.Reliability:
@@ -391,6 +396,10 @@ def display_best_solution_by_objective(solutions,objective):
 
 #The function running the NSGA_II Algorithm, Remove parameter allows to run the simulation with one 
 #parameter less (for 2D graphs) and show convergence shows the graph for the early stages of the simulation
+#exemple: NSGA_II() will run the simulation in 3D with a plot of generation 0 and n-1
+#exemple: NSGA_II(removeParameter="CostEx") will run the simulation in 2D with a plot of generation 0 and n-1 without consedering CostEx
+#exemple: NSGA_II(removeParameter="Reliability") will run the simulation in 2D with a plot of generation 0 and n-1 without consedering Reliability
+#exemple: NSGA_II(removeParameter="Latency",show_convergence=False) will run the simulation in 2D with a plot of generation 0, 2, 4, 6, 10 and n-1 without consedering Latency
 def NSGA_II(population_size=200,nb_generations=100, removeParameter=False, show_convergence=False):
     #reads the files' data and load them in classes
     Tasks,VMs=generateTasksAndVMs()
@@ -427,7 +436,7 @@ def NSGA_II(population_size=200,nb_generations=100, removeParameter=False, show_
     #displays some data at the end of the simulation
     print("average of final generation parameters:")
     display_means(population)
-    print("exemple of some of the fittest individual:")
+    print("exemples of some of the fittest individual:")
     population[0].show()
     print(population[0].CostEx,population[0].Reliability,population[0].Latency)
     population[population_size//2].show()
@@ -450,6 +459,7 @@ def NSGA_II(population_size=200,nb_generations=100, removeParameter=False, show_
     print(best_reliability.CostEx,best_reliability.Reliability,best_reliability.Latency)
 
 #main function running several simulations
+#can be modified to run different simulations
 def main ():
     NSGA_II(removeParameter="CostEx",show_convergence=True)
     NSGA_II(removeParameter="Reliability")
